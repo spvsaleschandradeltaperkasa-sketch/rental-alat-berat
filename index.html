@@ -164,8 +164,12 @@
     <div id="tab-unit" class="hidden">
       <div class="page-head">
         <div><h1>Unit Alat Berat</h1><p>Status ketersediaan armada</p></div>
-        <button class="btn btn-primary" id="btnAddUnit">+ Tambah Unit</button>
+        <div class="btn-row">
+          <button class="btn" id="btnImportUnit">Impor Excel/CSV</button>
+          <button class="btn btn-primary" id="btnAddUnit">+ Tambah Unit</button>
+        </div>
       </div>
+      <input type="file" id="csvUnitInput" accept=".csv" class="hidden">
       <div class="toolbar">
         <select id="filterStatus">
           <option value="">Semua status</option>
@@ -251,6 +255,20 @@
     <div class="btn-row" style="justify-content:flex-end;margin-top:16px">
       <button class="btn" id="btnCancelUnit">Batal</button>
       <button class="btn btn-primary" id="btnSaveUnit">Simpan</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: CSV mapping (Unit) -->
+<div class="modal-bg hidden" id="csvUnitModalBg">
+  <div class="modal" style="max-width:520px">
+    <h3>Impor Unit</h3>
+    <p style="font-size:12px;color:var(--text-muted);margin-top:-8px">Cocokkan kolom file Anda dengan data yang dibutuhkan.</p>
+    <div id="csvUnitMapRows"></div>
+    <p style="font-size:11.5px;color:var(--text-muted);margin-top:10px">Catatan: unit dengan Site/Lokasi terisi otomatis ditandai "Disewa", yang kosong ditandai "Tersedia" — silakan sesuaikan manual kalau perlu setelah impor.</p>
+    <div class="btn-row" style="justify-content:flex-end;margin-top:16px">
+      <button class="btn" id="btnCancelCsvUnit">Batal</button>
+      <button class="btn btn-primary" id="btnConfirmCsvUnit">Impor Sekarang</button>
     </div>
   </div>
 </div>
@@ -574,6 +592,86 @@ document.getElementById('btnConfirmCsv').addEventListener('click', async ()=>{
   csvModalBg.classList.add('hidden');
   render();
   alert(`Impor selesai: ${added} kontak baru, ${updated} kontak diperbarui.`);
+});
+
+// ---- CSV Import: Unit ----
+let csvUnitRows = [];
+let csvUnitHeaders = [];
+const UNIT_FIELDS = [
+  {key:'kode', label:'Kode Unit', required:true},
+  {key:'brand', label:'Merk (Brand)', required:false},
+  {key:'model', label:'Model/Tipe', required:false},
+  {key:'lokasi', label:'Site/Lokasi', required:false},
+  {key:'kelas', label:'Kelas/Kategori', required:false},
+];
+const csvUnitModalBg = document.getElementById('csvUnitModalBg');
+document.getElementById('btnImportUnit').addEventListener('click', ()=>document.getElementById('csvUnitInput').click());
+document.getElementById('csvUnitInput').addEventListener('change', (e)=>{
+  const file = e.target.files[0];
+  if(!file) return;
+  Papa.parse(file, {
+    header:true, skipEmptyLines:true,
+    complete: (res)=>{
+      csvUnitRows = res.data;
+      csvUnitHeaders = res.meta.fields || [];
+      openCsvUnitMapper();
+    }
+  });
+  e.target.value = '';
+});
+function guessUnitColumn(fieldKey){
+  const synonyms = {
+    kode:['unit code','kode unit','kode','unit'],
+    brand:['brand','merk'],
+    model:['model','tipe','type'],
+    lokasi:['site code','site','lokasi'],
+    kelas:['class','kelas','kategori'],
+  };
+  const words = synonyms[fieldKey]||[];
+  return csvUnitHeaders.find(h => words.some(w => h.toLowerCase().includes(w))) || '';
+}
+function openCsvUnitMapper(){
+  const wrap = document.getElementById('csvUnitMapRows');
+  wrap.innerHTML = UNIT_FIELDS.map(f=>{
+    const guess = guessUnitColumn(f.key);
+    return `<div class="map-row">
+      <label>${f.label}${f.required?' *':''}</label>
+      <select data-field="${f.key}" style="flex:1">
+        <option value="">- tidak dipetakan -</option>
+        ${csvUnitHeaders.map(h=>`<option value="${escAttr(h)}" ${h===guess?'selected':''}>${escHtml(h)}</option>`).join('')}
+      </select>
+    </div>`;
+  }).join('') + `<p style="font-size:12px;color:var(--text-muted);margin-top:10px">${csvUnitRows.length} baris terbaca dari file.</p>`;
+  csvUnitModalBg.classList.remove('hidden');
+}
+document.getElementById('btnCancelCsvUnit').addEventListener('click', ()=>csvUnitModalBg.classList.add('hidden'));
+document.getElementById('btnConfirmCsvUnit').addEventListener('click', async ()=>{
+  const mapping = {};
+  document.querySelectorAll('#csvUnitMapRows select').forEach(sel=>{ mapping[sel.dataset.field] = sel.value; });
+  if(!mapping.kode){ alert('Kolom Kode Unit wajib dipetakan.'); return; }
+  let added = 0, updated = 0;
+  csvUnitRows.forEach(row=>{
+    const kode = (row[mapping.kode]||'').trim();
+    if(!kode) return;
+    const brand = mapping.brand ? (row[mapping.brand]||'').trim() : '';
+    const model = mapping.model ? (row[mapping.model]||'').trim() : '';
+    const lokasi = mapping.lokasi ? (row[mapping.lokasi]||'').trim() : '';
+    const kelas = mapping.kelas ? (row[mapping.kelas]||'').trim() : '';
+    const nama = [brand, model].filter(Boolean).join(' ') || kode;
+    const data = {
+      nama, kode,
+      status: lokasi ? 'Disewa' : 'Tersedia',
+      lokasi,
+      catatan: kelas,
+    };
+    const existing = units.find(u=>u.kode===kode);
+    if(existing){ Object.assign(existing, data); updated++; }
+    else{ units.push({id:uid(), ...data}); added++; }
+  });
+  await saveUnits();
+  csvUnitModalBg.classList.add('hidden');
+  render();
+  alert(`Impor selesai: ${added} unit baru, ${updated} unit diperbarui.`);
 });
 
 // ---- Blast ----
