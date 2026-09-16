@@ -1,0 +1,669 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard Rental Alat Berat</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<style>
+  :root{
+    --bg:#16181a;
+    --surface:#1f2224;
+    --surface-2:#292c2f;
+    --border:#3a3d40;
+    --text:#edeae3;
+    --text-muted:#9b9791;
+    --accent:#f5b324;
+    --accent-ink:#16181a;
+    --alert:#e2572b;
+    --success:#4f9d6e;
+    --danger:#d64545;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;}
+  h1,h2,h3,.display{font-family:'Barlow Condensed',sans-serif;font-weight:700;letter-spacing:0.01em;}
+  ::-webkit-scrollbar{width:8px;height:8px;}
+  ::-webkit-scrollbar-thumb{background:var(--surface-2);border-radius:4px;}
+
+  .app{display:flex;min-height:100vh;}
+
+  /* Sidebar */
+  .sidebar{width:210px;flex-shrink:0;background:var(--surface);border-right:1px solid var(--border);padding:20px 0;display:flex;flex-direction:column;}
+  .brand{padding:0 20px 20px 20px;border-bottom:1px solid var(--border);margin-bottom:12px;}
+  .brand-mark{width:34px;height:34px;background:var(--accent);color:var(--accent-ink);display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:18px;margin-bottom:8px;}
+  .brand-name{font-size:13px;color:var(--text-muted);line-height:1.4;}
+  nav{display:flex;flex-direction:column;gap:2px;padding:0 10px;}
+  .nav-btn{display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:4px;background:transparent;border:none;color:var(--text-muted);font-family:'Inter',sans-serif;font-size:14px;font-weight:500;cursor:pointer;text-align:left;border-left:3px solid transparent;}
+  .nav-btn:hover{background:var(--surface-2);color:var(--text);}
+  .nav-btn.active{background:var(--surface-2);color:var(--text);border-left:3px solid var(--accent);}
+  .nav-icon{width:18px;text-align:center;}
+
+  /* Main */
+  .main{flex:1;padding:28px 32px;max-width:1200px;}
+  .page-head{display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:20px;flex-wrap:wrap;gap:12px;}
+  .page-head h1{font-size:30px;margin:0;}
+  .page-head p{margin:2px 0 0 0;color:var(--text-muted);font-size:14px;}
+
+  .stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:24px;}
+  .stat-card{background:var(--surface);border:1px solid var(--border);border-left:3px solid var(--accent);padding:14px 16px;}
+  .stat-card.s-green{border-left-color:var(--success);}
+  .stat-card.s-orange{border-left-color:var(--alert);}
+  .stat-card.s-grey{border-left-color:var(--text-muted);}
+  .stat-num{font-family:'Barlow Condensed',sans-serif;font-size:28px;font-weight:700;line-height:1;}
+  .stat-label{font-size:12px;color:var(--text-muted);margin-top:4px;}
+
+  .btn{font-family:'Inter',sans-serif;font-weight:600;font-size:13px;padding:9px 16px;border-radius:4px;border:1px solid var(--border);background:var(--surface-2);color:var(--text);cursor:pointer;}
+  .btn:hover{background:#33373a;}
+  .btn-primary{background:var(--accent);color:var(--accent-ink);border:1px solid var(--accent);}
+  .btn-primary:hover{background:#ffc44a;}
+  .btn-danger{background:transparent;color:var(--danger);border:1px solid var(--danger);}
+  .btn-sm{padding:6px 10px;font-size:12px;}
+  .btn-row{display:flex;gap:8px;flex-wrap:wrap;}
+
+  input[type=text],input[type=tel],input[type=file],select,textarea{
+    background:var(--surface-2);border:1px solid var(--border);color:var(--text);
+    padding:9px 11px;border-radius:4px;font-family:'Inter',sans-serif;font-size:13px;width:100%;
+  }
+  textarea{resize:vertical;}
+  label{font-size:12px;color:var(--text-muted);display:block;margin-bottom:4px;}
+  .field{margin-bottom:12px;}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+
+  .panel{background:var(--surface);border:1px solid var(--border);padding:20px;margin-bottom:20px;}
+  .panel h3{margin:0 0 14px 0;font-size:18px;}
+
+  table{width:100%;border-collapse:collapse;font-size:13px;}
+  th{text-align:left;color:var(--text-muted);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:0.04em;padding:8px 10px;border-bottom:1px solid var(--border);}
+  td{padding:9px 10px;border-bottom:1px solid var(--surface-2);vertical-align:middle;}
+  tr:hover td{background:var(--surface-2);}
+  .empty{padding:40px 20px;text-align:center;color:var(--text-muted);}
+
+  .badge{display:inline-block;padding:3px 9px;font-size:11px;font-weight:600;border-radius:3px;}
+  .badge-tersedia{background:rgba(79,157,110,0.18);color:var(--success);}
+  .badge-disewa{background:rgba(245,179,36,0.18);color:var(--accent);}
+  .badge-maintenance{background:rgba(226,87,43,0.18);color:var(--alert);}
+
+  .toolbar{display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap;align-items:center;}
+  .toolbar input,.toolbar select{width:auto;min-width:160px;}
+
+  .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,0.55);display:flex;align-items:center;justify-content:center;z-index:50;padding:20px;}
+  .modal{background:var(--surface);border:1px solid var(--border);padding:24px;width:100%;max-width:480px;max-height:88vh;overflow-y:auto;}
+  .modal h3{margin-top:0;}
+  .hidden{display:none !important;}
+
+  .unit-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:14px;}
+  .unit-card{background:var(--surface);border:1px solid var(--border);padding:14px;position:relative;}
+  .unit-plate{font-family:'Barlow Condensed',sans-serif;font-size:12px;color:var(--text-muted);letter-spacing:0.08em;}
+  .unit-name{font-size:17px;font-weight:600;margin:4px 0 8px 0;}
+  .unit-meta{font-size:12px;color:var(--text-muted);margin-top:6px;}
+  .unit-actions{display:flex;gap:6px;margin-top:12px;}
+
+  .chip{display:inline-flex;align-items:center;gap:6px;background:var(--surface-2);border:1px solid var(--border);padding:4px 10px;border-radius:14px;font-size:12px;}
+
+  .blast-layout{display:grid;grid-template-columns:1.1fr 0.9fr;gap:20px;align-items:start;}
+  @media(max-width:900px){.blast-layout{grid-template-columns:1fr;}}
+  .contact-pick-row{display:flex;align-items:center;gap:10px;padding:8px 6px;border-bottom:1px solid var(--surface-2);font-size:13px;}
+  .contact-pick-row input{width:auto;}
+  .preview-box{background:var(--surface-2);border:1px solid var(--border);border-radius:4px;padding:14px;font-size:13px;white-space:pre-wrap;line-height:1.5;min-height:80px;}
+  .send-row{display:flex;justify-content:space-between;align-items:center;padding:9px 6px;border-bottom:1px solid var(--surface-2);font-size:13px;}
+  .send-row.sent{opacity:0.45;}
+  .note-box{background:rgba(245,179,36,0.08);border:1px solid rgba(245,179,36,0.3);border-radius:4px;padding:12px 14px;font-size:12.5px;color:var(--text-muted);margin-bottom:16px;line-height:1.5;}
+  .progress-bar{height:6px;background:var(--surface-2);border-radius:3px;overflow:hidden;margin:10px 0;}
+  .progress-fill{height:100%;background:var(--accent);}
+  .map-row{display:flex;gap:10px;align-items:center;margin-bottom:8px;}
+  .map-row label{margin:0;width:120px;flex-shrink:0;}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="sidebar">
+    <div class="brand">
+      <div class="brand-mark">AB</div>
+      <div class="brand-name">Dashboard Rental<br>Alat Berat</div>
+    </div>
+    <nav>
+      <button class="nav-btn active" data-tab="kontak"><span class="nav-icon">☰</span> Kontak</button>
+      <button class="nav-btn" data-tab="unit"><span class="nav-icon">▣</span> Unit Alat</button>
+      <button class="nav-btn" data-tab="blast"><span class="nav-icon">➤</span> Blast WA</button>
+    </nav>
+  </div>
+
+  <div class="main">
+    <div class="stats-row" id="statsRow"></div>
+
+    <!-- KONTAK -->
+    <div id="tab-kontak">
+      <div class="page-head">
+        <div><h1>Kontak</h1><p>Database klien &amp; kontraktor</p></div>
+        <div class="btn-row">
+          <button class="btn" id="btnImport">Impor Excel/CSV</button>
+          <button class="btn btn-primary" id="btnAddContact">+ Tambah Kontak</button>
+        </div>
+      </div>
+      <input type="file" id="csvInput" accept=".csv" class="hidden">
+
+      <div class="panel">
+        <div class="toolbar">
+          <input type="text" id="searchContact" placeholder="Cari nama / nomor / perusahaan...">
+          <select id="filterKategori"><option value="">Semua kategori</option></select>
+          <span style="color:var(--text-muted);font-size:12px;margin-left:auto" id="contactCount"></span>
+        </div>
+        <div style="overflow-x:auto">
+          <table>
+            <thead><tr><th></th><th>Nama</th><th>No. WhatsApp</th><th>Perusahaan</th><th>Wilayah</th><th>Kategori</th><th></th></tr></thead>
+            <tbody id="contactTableBody"></tbody>
+          </table>
+        </div>
+        <div class="empty hidden" id="contactEmpty">Belum ada kontak. Impor dari CSV atau tambah manual.</div>
+      </div>
+    </div>
+
+    <!-- UNIT -->
+    <div id="tab-unit" class="hidden">
+      <div class="page-head">
+        <div><h1>Unit Alat Berat</h1><p>Status ketersediaan armada</p></div>
+        <button class="btn btn-primary" id="btnAddUnit">+ Tambah Unit</button>
+      </div>
+      <div class="toolbar">
+        <select id="filterStatus">
+          <option value="">Semua status</option>
+          <option value="Tersedia">Tersedia</option>
+          <option value="Disewa">Disewa</option>
+          <option value="Maintenance">Maintenance</option>
+        </select>
+      </div>
+      <div class="unit-grid" id="unitGrid"></div>
+      <div class="empty hidden" id="unitEmpty">Belum ada unit terdaftar. Tambahkan unit alat berat Anda.</div>
+    </div>
+
+    <!-- BLAST -->
+    <div id="tab-blast" class="hidden">
+      <div class="page-head">
+        <div><h1>Blast WhatsApp</h1><p>Siapkan pesan, kirim satu klik per kontak</p></div>
+      </div>
+      <div class="note-box">
+        Karena belum pakai WhatsApp Business API resmi, pengiriman tetap perlu diklik satu per satu per kontak (untuk hindari akun kena flag spam) — tapi pesan sudah otomatis terisi, jadi tinggal klik lalu tekan kirim di WhatsApp.
+      </div>
+      <div class="blast-layout">
+        <div class="panel">
+          <h3>1. Pilih kontak</h3>
+          <div class="toolbar">
+            <select id="blastFilterKategori"><option value="">Semua kategori</option></select>
+            <button class="btn btn-sm" id="btnSelectAll">Pilih semua</button>
+            <button class="btn btn-sm" id="btnSelectNone">Kosongkan</button>
+          </div>
+          <div id="blastContactList" style="max-height:320px;overflow-y:auto;border-top:1px solid var(--border)"></div>
+
+          <h3 style="margin-top:20px">2. Tulis pesan</h3>
+          <p style="font-size:12px;color:var(--text-muted);margin:-8px 0 8px 0">Gunakan {nama} atau {perusahaan} untuk personalisasi otomatis.</p>
+          <textarea id="blastMessage" rows="6" placeholder="Contoh: Halo {nama}, saat ini kami ada unit excavator siap sewa..."></textarea>
+        </div>
+
+        <div class="panel">
+          <h3>Preview pesan</h3>
+          <div class="preview-box" id="previewBox">Pilih kontak &amp; tulis pesan untuk lihat preview.</div>
+
+          <h3 style="margin-top:20px">3. Kirim</h3>
+          <div id="sendQueueWrap">
+            <p style="font-size:12px;color:var(--text-muted)" id="queueHint">Belum ada antrian kirim.</p>
+            <div class="progress-bar hidden" id="progressBar"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+            <div id="sendQueue" style="max-height:280px;overflow-y:auto"></div>
+          </div>
+          <button class="btn btn-primary" id="btnBuildQueue" style="margin-top:14px;width:100%">Siapkan Antrian Kirim</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Contact -->
+<div class="modal-bg hidden" id="contactModalBg">
+  <div class="modal">
+    <h3 id="contactModalTitle">Tambah Kontak</h3>
+    <div class="field"><label>Nama</label><input type="text" id="f_nama"></div>
+    <div class="field"><label>No. WhatsApp (contoh: 081234567890)</label><input type="tel" id="f_telepon"></div>
+    <div class="row2">
+      <div class="field"><label>Perusahaan</label><input type="text" id="f_perusahaan"></div>
+      <div class="field"><label>Wilayah</label><input type="text" id="f_wilayah"></div>
+    </div>
+    <div class="field"><label>Kategori (contoh: Kontraktor, Tambang, Proyek Jalan)</label><input type="text" id="f_kategori"></div>
+    <div class="field"><label>Catatan</label><textarea id="f_catatan" rows="2"></textarea></div>
+    <div class="btn-row" style="justify-content:flex-end;margin-top:16px">
+      <button class="btn" id="btnCancelContact">Batal</button>
+      <button class="btn btn-primary" id="btnSaveContact">Simpan</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Unit -->
+<div class="modal-bg hidden" id="unitModalBg">
+  <div class="modal">
+    <h3 id="unitModalTitle">Tambah Unit</h3>
+    <div class="field"><label>Nama / Tipe Unit (contoh: Excavator PC200)</label><input type="text" id="u_nama"></div>
+    <div class="field"><label>Kode / No. Lambung</label><input type="text" id="u_kode"></div>
+    <div class="field"><label>Status</label>
+      <select id="u_status"><option>Tersedia</option><option>Disewa</option><option>Maintenance</option></select>
+    </div>
+    <div class="field"><label>Lokasi / Proyek Saat Ini</label><input type="text" id="u_lokasi"></div>
+    <div class="field"><label>Catatan</label><textarea id="u_catatan" rows="2"></textarea></div>
+    <div class="btn-row" style="justify-content:flex-end;margin-top:16px">
+      <button class="btn" id="btnCancelUnit">Batal</button>
+      <button class="btn btn-primary" id="btnSaveUnit">Simpan</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: CSV mapping -->
+<div class="modal-bg hidden" id="csvModalBg">
+  <div class="modal" style="max-width:520px">
+    <h3>Impor Kontak</h3>
+    <p style="font-size:12px;color:var(--text-muted);margin-top:-8px">Cocokkan kolom file Anda dengan data yang dibutuhkan.</p>
+    <div id="csvMapRows"></div>
+    <div class="btn-row" style="justify-content:flex-end;margin-top:16px">
+      <button class="btn" id="btnCancelCsv">Batal</button>
+      <button class="btn btn-primary" id="btnConfirmCsv">Impor Sekarang</button>
+    </div>
+  </div>
+</div>
+
+<script>
+let contacts = [];
+let units = [];
+let csvRows = [];
+let csvHeaders = [];
+let editingContactId = null;
+let editingUnitId = null;
+let sendQueue = [];
+
+const REQUIRED_FIELDS = [
+  {key:'nama', label:'Nama', required:true},
+  {key:'telepon', label:'No. WhatsApp', required:true},
+  {key:'perusahaan', label:'Perusahaan', required:false},
+  {key:'wilayah', label:'Wilayah', required:false},
+  {key:'kategori', label:'Kategori', required:false},
+];
+
+function uid(){ return 'id_' + Math.random().toString(36).slice(2,10); }
+
+function normalizePhone(raw){
+  if(!raw) return '';
+  let d = String(raw).replace(/[^0-9]/g,'');
+  if(d.startsWith('0')) d = '62' + d.slice(1);
+  if(d.startsWith('8')) d = '62' + d;
+  return d;
+}
+
+async function loadData(){
+  try{
+    const c = await window.storage.get('contacts', false);
+    contacts = c ? JSON.parse(c.value) : [];
+  }catch(e){ contacts = []; }
+  try{
+    const u = await window.storage.get('units', false);
+    units = u ? JSON.parse(u.value) : [];
+  }catch(e){ units = []; }
+  render();
+}
+
+async function saveContacts(){
+  await window.storage.set('contacts', JSON.stringify(contacts), false);
+}
+async function saveUnits(){
+  await window.storage.set('units', JSON.stringify(units), false);
+}
+
+function render(){
+  renderStats();
+  renderContacts();
+  renderUnits();
+  renderKategoriFilters();
+  renderBlastContacts();
+}
+
+function renderStats(){
+  const tersedia = units.filter(u=>u.status==='Tersedia').length;
+  const disewa = units.filter(u=>u.status==='Disewa').length;
+  const maint = units.filter(u=>u.status==='Maintenance').length;
+  document.getElementById('statsRow').innerHTML = `
+    <div class="stat-card s-grey"><div class="stat-num">${contacts.length}</div><div class="stat-label">Total Kontak</div></div>
+    <div class="stat-card s-green"><div class="stat-num">${tersedia}</div><div class="stat-label">Unit Tersedia</div></div>
+    <div class="stat-card"><div class="stat-num">${disewa}</div><div class="stat-label">Unit Disewa</div></div>
+    <div class="stat-card s-orange"><div class="stat-num">${maint}</div><div class="stat-label">Maintenance</div></div>
+  `;
+}
+
+function renderKategoriFilters(){
+  const cats = [...new Set(contacts.map(c=>c.kategori).filter(Boolean))];
+  for(const sel of [document.getElementById('filterKategori'), document.getElementById('blastFilterKategori')]){
+    const current = sel.value;
+    sel.innerHTML = '<option value="">Semua kategori</option>' + cats.map(c=>`<option value="${escAttr(c)}">${escHtml(c)}</option>`).join('');
+    sel.value = current;
+  }
+}
+
+function escHtml(s){ return String(s||'').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+function escAttr(s){ return escHtml(s); }
+
+function renderContacts(){
+  const search = document.getElementById('searchContact').value.toLowerCase();
+  const kategori = document.getElementById('filterKategori').value;
+  let list = contacts.filter(c=>{
+    const matchSearch = !search || (c.nama+c.telepon+c.perusahaan).toLowerCase().includes(search);
+    const matchKat = !kategori || c.kategori === kategori;
+    return matchSearch && matchKat;
+  });
+  document.getElementById('contactCount').textContent = list.length + ' kontak';
+  const body = document.getElementById('contactTableBody');
+  document.getElementById('contactEmpty').classList.toggle('hidden', contacts.length !== 0);
+  body.innerHTML = list.map(c=>`
+    <tr>
+      <td><input type="checkbox" disabled style="opacity:0"></td>
+      <td>${escHtml(c.nama)}</td>
+      <td>${escHtml(c.telepon)}</td>
+      <td>${escHtml(c.perusahaan||'-')}</td>
+      <td>${escHtml(c.wilayah||'-')}</td>
+      <td>${c.kategori?`<span class="chip">${escHtml(c.kategori)}</span>`:'-'}</td>
+      <td class="btn-row">
+        <button class="btn btn-sm" onclick="editContact('${c.id}')">Edit</button>
+        <button class="btn btn-sm btn-danger" onclick="deleteContact('${c.id}')">Hapus</button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+function renderUnits(){
+  const status = document.getElementById('filterStatus').value;
+  let list = units.filter(u=> !status || u.status===status);
+  document.getElementById('unitEmpty').classList.toggle('hidden', units.length !== 0);
+  const badgeClass = {Tersedia:'badge-tersedia',Disewa:'badge-disewa',Maintenance:'badge-maintenance'};
+  document.getElementById('unitGrid').innerHTML = list.map(u=>`
+    <div class="unit-card">
+      <div class="unit-plate">${escHtml(u.kode||'—')}</div>
+      <div class="unit-name">${escHtml(u.nama)}</div>
+      <span class="badge ${badgeClass[u.status]||''}">${escHtml(u.status)}</span>
+      <div class="unit-meta">📍 ${escHtml(u.lokasi||'-')}</div>
+      ${u.catatan?`<div class="unit-meta">${escHtml(u.catatan)}</div>`:''}
+      <div class="unit-actions">
+        <button class="btn btn-sm" onclick="editUnit('${u.id}')">Edit</button>
+        <button class="btn btn-sm btn-danger" onclick="deleteUnit('${u.id}')">Hapus</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+// ---- Tabs ----
+document.querySelectorAll('.nav-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    ['kontak','unit','blast'].forEach(t=>{
+      document.getElementById('tab-'+t).classList.toggle('hidden', t !== btn.dataset.tab);
+    });
+  });
+});
+
+// ---- Contact modal ----
+const contactModalBg = document.getElementById('contactModalBg');
+function openContactModal(){
+  document.getElementById('contactModalTitle').textContent = editingContactId ? 'Edit Kontak' : 'Tambah Kontak';
+  contactModalBg.classList.remove('hidden');
+}
+document.getElementById('btnAddContact').addEventListener('click', ()=>{
+  editingContactId = null;
+  ['f_nama','f_telepon','f_perusahaan','f_wilayah','f_kategori','f_catatan'].forEach(id=>document.getElementById(id).value='');
+  openContactModal();
+});
+document.getElementById('btnCancelContact').addEventListener('click', ()=>contactModalBg.classList.add('hidden'));
+document.getElementById('btnSaveContact').addEventListener('click', async ()=>{
+  const nama = document.getElementById('f_nama').value.trim();
+  const telepon = normalizePhone(document.getElementById('f_telepon').value.trim());
+  if(!nama || !telepon){ alert('Nama dan nomor WhatsApp wajib diisi.'); return; }
+  const data = {
+    nama, telepon,
+    perusahaan: document.getElementById('f_perusahaan').value.trim(),
+    wilayah: document.getElementById('f_wilayah').value.trim(),
+    kategori: document.getElementById('f_kategori').value.trim(),
+    catatan: document.getElementById('f_catatan').value.trim(),
+  };
+  if(editingContactId){
+    const idx = contacts.findIndex(c=>c.id===editingContactId);
+    contacts[idx] = {...contacts[idx], ...data};
+  }else{
+    contacts.push({id:uid(), ...data});
+  }
+  await saveContacts();
+  contactModalBg.classList.add('hidden');
+  render();
+});
+window.editContact = function(id){
+  const c = contacts.find(x=>x.id===id);
+  editingContactId = id;
+  document.getElementById('f_nama').value = c.nama;
+  document.getElementById('f_telepon').value = c.telepon;
+  document.getElementById('f_perusahaan').value = c.perusahaan||'';
+  document.getElementById('f_wilayah').value = c.wilayah||'';
+  document.getElementById('f_kategori').value = c.kategori||'';
+  document.getElementById('f_catatan').value = c.catatan||'';
+  openContactModal();
+};
+window.deleteContact = async function(id){
+  if(!confirm('Hapus kontak ini?')) return;
+  contacts = contacts.filter(c=>c.id!==id);
+  await saveContacts();
+  render();
+};
+document.getElementById('searchContact').addEventListener('input', renderContacts);
+document.getElementById('filterKategori').addEventListener('change', renderContacts);
+
+// ---- Unit modal ----
+const unitModalBg = document.getElementById('unitModalBg');
+document.getElementById('btnAddUnit').addEventListener('click', ()=>{
+  editingUnitId = null;
+  document.getElementById('unitModalTitle').textContent = 'Tambah Unit';
+  ['u_nama','u_kode','u_lokasi','u_catatan'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('u_status').value = 'Tersedia';
+  unitModalBg.classList.remove('hidden');
+});
+document.getElementById('btnCancelUnit').addEventListener('click', ()=>unitModalBg.classList.add('hidden'));
+document.getElementById('btnSaveUnit').addEventListener('click', async ()=>{
+  const nama = document.getElementById('u_nama').value.trim();
+  if(!nama){ alert('Nama unit wajib diisi.'); return; }
+  const data = {
+    nama,
+    kode: document.getElementById('u_kode').value.trim(),
+    status: document.getElementById('u_status').value,
+    lokasi: document.getElementById('u_lokasi').value.trim(),
+    catatan: document.getElementById('u_catatan').value.trim(),
+  };
+  if(editingUnitId){
+    const idx = units.findIndex(u=>u.id===editingUnitId);
+    units[idx] = {...units[idx], ...data};
+  }else{
+    units.push({id:uid(), ...data});
+  }
+  await saveUnits();
+  unitModalBg.classList.add('hidden');
+  render();
+});
+window.editUnit = function(id){
+  const u = units.find(x=>x.id===id);
+  editingUnitId = id;
+  document.getElementById('unitModalTitle').textContent = 'Edit Unit';
+  document.getElementById('u_nama').value = u.nama;
+  document.getElementById('u_kode').value = u.kode||'';
+  document.getElementById('u_status').value = u.status;
+  document.getElementById('u_lokasi').value = u.lokasi||'';
+  document.getElementById('u_catatan').value = u.catatan||'';
+  unitModalBg.classList.remove('hidden');
+};
+window.deleteUnit = async function(id){
+  if(!confirm('Hapus unit ini?')) return;
+  units = units.filter(u=>u.id!==id);
+  await saveUnits();
+  render();
+};
+document.getElementById('filterStatus').addEventListener('change', renderUnits);
+
+// ---- CSV Import ----
+const csvModalBg = document.getElementById('csvModalBg');
+document.getElementById('btnImport').addEventListener('click', ()=>document.getElementById('csvInput').click());
+document.getElementById('csvInput').addEventListener('change', (e)=>{
+  const file = e.target.files[0];
+  if(!file) return;
+  Papa.parse(file, {
+    header:true, skipEmptyLines:true,
+    complete: (res)=>{
+      csvRows = res.data;
+      csvHeaders = res.meta.fields || [];
+      openCsvMapper();
+    }
+  });
+  e.target.value = '';
+});
+
+function guessColumn(fieldKey){
+  const synonyms = {
+    nama:['nama','name','contact'],
+    telepon:['telepon','telfon','telp','hp','wa','whatsapp','nomor','no hp','phone'],
+    perusahaan:['perusahaan','company','instansi'],
+    wilayah:['wilayah','kota','daerah','lokasi','region'],
+    kategori:['kategori','tipe','category','tag'],
+  };
+  const words = synonyms[fieldKey]||[];
+  return csvHeaders.find(h => words.some(w => h.toLowerCase().includes(w))) || '';
+}
+
+function openCsvMapper(){
+  const wrap = document.getElementById('csvMapRows');
+  wrap.innerHTML = REQUIRED_FIELDS.map(f=>{
+    const guess = guessColumn(f.key);
+    return `<div class="map-row">
+      <label>${f.label}${f.required?' *':''}</label>
+      <select data-field="${f.key}" style="flex:1">
+        <option value="">- tidak dipetakan -</option>
+        ${csvHeaders.map(h=>`<option value="${escAttr(h)}" ${h===guess?'selected':''}>${escHtml(h)}</option>`).join('')}
+      </select>
+    </div>`;
+  }).join('') + `<p style="font-size:12px;color:var(--text-muted);margin-top:10px">${csvRows.length} baris terbaca dari file.</p>`;
+  csvModalBg.classList.remove('hidden');
+}
+document.getElementById('btnCancelCsv').addEventListener('click', ()=>csvModalBg.classList.add('hidden'));
+document.getElementById('btnConfirmCsv').addEventListener('click', async ()=>{
+  const mapping = {};
+  document.querySelectorAll('#csvMapRows select').forEach(sel=>{ mapping[sel.dataset.field] = sel.value; });
+  if(!mapping.nama || !mapping.telepon){ alert('Kolom Nama dan No. WhatsApp wajib dipetakan.'); return; }
+  let added = 0, updated = 0;
+  csvRows.forEach(row=>{
+    const telepon = normalizePhone(row[mapping.telepon]);
+    const nama = (row[mapping.nama]||'').trim();
+    if(!telepon || !nama) return;
+    const data = {
+      nama, telepon,
+      perusahaan: mapping.perusahaan ? (row[mapping.perusahaan]||'').trim() : '',
+      wilayah: mapping.wilayah ? (row[mapping.wilayah]||'').trim() : '',
+      kategori: mapping.kategori ? (row[mapping.kategori]||'').trim() : '',
+      catatan:'',
+    };
+    const existing = contacts.find(c=>c.telepon===telepon);
+    if(existing){ Object.assign(existing, data); updated++; }
+    else{ contacts.push({id:uid(), ...data}); added++; }
+  });
+  await saveContacts();
+  csvModalBg.classList.add('hidden');
+  render();
+  alert(`Impor selesai: ${added} kontak baru, ${updated} kontak diperbarui.`);
+});
+
+// ---- Blast ----
+let blastSelected = new Set();
+function renderBlastContacts(){
+  const kategori = document.getElementById('blastFilterKategori').value;
+  const list = contacts.filter(c=> !kategori || c.kategori===kategori);
+  const wrap = document.getElementById('blastContactList');
+  if(list.length===0){
+    wrap.innerHTML = '<div class="empty">Belum ada kontak untuk dipilih.</div>';
+    return;
+  }
+  wrap.innerHTML = list.map(c=>`
+    <div class="contact-pick-row">
+      <input type="checkbox" data-id="${c.id}" ${blastSelected.has(c.id)?'checked':''}>
+      <div style="flex:1">${escHtml(c.nama)} <span style="color:var(--text-muted)">— ${escHtml(c.telepon)}</span></div>
+      ${c.kategori?`<span class="chip">${escHtml(c.kategori)}</span>`:''}
+    </div>
+  `).join('');
+  wrap.querySelectorAll('input[type=checkbox]').forEach(cb=>{
+    cb.addEventListener('change', ()=>{
+      if(cb.checked) blastSelected.add(cb.dataset.id); else blastSelected.delete(cb.dataset.id);
+      updatePreview();
+    });
+  });
+}
+document.getElementById('blastFilterKategori').addEventListener('change', renderBlastContacts);
+document.getElementById('btnSelectAll').addEventListener('click', ()=>{
+  const kategori = document.getElementById('blastFilterKategori').value;
+  contacts.filter(c=> !kategori || c.kategori===kategori).forEach(c=>blastSelected.add(c.id));
+  renderBlastContacts(); updatePreview();
+});
+document.getElementById('btnSelectNone').addEventListener('click', ()=>{
+  blastSelected.clear(); renderBlastContacts(); updatePreview();
+});
+
+function fillTemplate(tpl, c){
+  return tpl.replaceAll('{nama}', c.nama || '').replaceAll('{perusahaan}', c.perusahaan || '');
+}
+function updatePreview(){
+  const tpl = document.getElementById('blastMessage').value;
+  const firstId = [...blastSelected][0];
+  const box = document.getElementById('previewBox');
+  if(!tpl){ box.textContent = 'Pilih kontak & tulis pesan untuk lihat preview.'; return; }
+  if(!firstId){ box.textContent = tpl; return; }
+  const c = contacts.find(x=>x.id===firstId);
+  box.textContent = fillTemplate(tpl, c);
+}
+document.getElementById('blastMessage').addEventListener('input', updatePreview);
+
+document.getElementById('btnBuildQueue').addEventListener('click', ()=>{
+  const tpl = document.getElementById('blastMessage').value.trim();
+  if(!tpl){ alert('Tulis pesan dulu.'); return; }
+  if(blastSelected.size===0){ alert('Pilih minimal satu kontak.'); return; }
+  sendQueue = [...blastSelected].map(id=>{
+    const c = contacts.find(x=>x.id===id);
+    return {id:c.id, nama:c.nama, telepon:c.telepon, message: fillTemplate(tpl, c), sent:false};
+  });
+  renderQueue();
+});
+
+function renderQueue(){
+  const sentCount = sendQueue.filter(q=>q.sent).length;
+  document.getElementById('queueHint').textContent = sendQueue.length
+    ? `${sentCount}/${sendQueue.length} sudah diklik kirim`
+    : 'Belum ada antrian kirim.';
+  const bar = document.getElementById('progressBar');
+  const fill = document.getElementById('progressFill');
+  if(sendQueue.length){
+    bar.classList.remove('hidden');
+    fill.style.width = Math.round((sentCount/sendQueue.length)*100) + '%';
+  }else{
+    bar.classList.add('hidden');
+  }
+  document.getElementById('sendQueue').innerHTML = sendQueue.map(q=>`
+    <div class="send-row ${q.sent?'sent':''}">
+      <div>${escHtml(q.nama)} <span style="color:var(--text-muted)">— ${escHtml(q.telepon)}</span></div>
+      <button class="btn btn-sm ${q.sent?'':'btn-primary'}" onclick="openWa('${q.id}')">${q.sent?'Buka lagi':'Buka & Kirim'}</button>
+    </div>
+  `).join('');
+}
+window.openWa = function(id){
+  const q = sendQueue.find(x=>x.id===id);
+  if(!q) return;
+  window.open(`https://wa.me/${q.telepon}?text=${encodeURIComponent(q.message)}`, '_blank');
+  q.sent = true;
+  renderQueue();
+};
+
+loadData();
+</script>
+</body>
+</html>
