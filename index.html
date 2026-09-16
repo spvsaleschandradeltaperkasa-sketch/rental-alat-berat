@@ -297,21 +297,21 @@ function normalizePhone(raw){
 
 async function loadData(){
   try{
-    const c = await window.storage.get('contacts', false);
-    contacts = c ? JSON.parse(c.value) : [];
+    const c = localStorage.getItem('contacts');
+    contacts = c ? JSON.parse(c) : [];
   }catch(e){ contacts = []; }
   try{
-    const u = await window.storage.get('units', false);
-    units = u ? JSON.parse(u.value) : [];
+    const u = localStorage.getItem('units');
+    units = u ? JSON.parse(u) : [];
   }catch(e){ units = []; }
   render();
 }
 
 async function saveContacts(){
-  await window.storage.set('contacts', JSON.stringify(contacts), false);
+  localStorage.setItem('contacts', JSON.stringify(contacts));
 }
 async function saveUnits(){
-  await window.storage.set('units', JSON.stringify(units), false);
+  localStorage.setItem('units', JSON.stringify(units));
 }
 
 function render(){
