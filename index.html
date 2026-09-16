@@ -126,6 +126,7 @@
     <nav>
       <button class="nav-btn active" data-tab="kontak"><span class="nav-icon">☰</span> Kontak</button>
       <button class="nav-btn" data-tab="unit"><span class="nav-icon">▣</span> Unit Alat</button>
+      <button class="nav-btn" data-tab="live"><span class="nav-icon">◉</span> Status Live</button>
       <button class="nav-btn" data-tab="blast"><span class="nav-icon">➤</span> Blast WA</button>
     </nav>
   </div>
@@ -180,6 +181,51 @@
       </div>
       <div class="unit-grid" id="unitGrid"></div>
       <div class="empty hidden" id="unitEmpty">Belum ada unit terdaftar. Tambahkan unit alat berat Anda.</div>
+    </div>
+
+    <!-- LIVE STATUS -->
+    <div id="tab-live" class="hidden">
+      <div class="page-head">
+        <div><h1>Status Live</h1><p>Ditarik langsung dari Google Sheets</p></div>
+        <div class="btn-row">
+          <button class="btn" id="btnLiveSettings">⚙ Sumber Data</button>
+          <button class="btn btn-primary" id="btnLiveRefresh">↻ Refresh</button>
+        </div>
+      </div>
+
+      <div id="liveSettingsPanel" class="panel hidden">
+        <h3>Sumber Google Sheets</h3>
+        <div class="row2">
+          <div class="field"><label>Spreadsheet ID</label><input type="text" id="liveSheetId"></div>
+          <div class="field"><label>GID (nomor sheet/tab)</label><input type="text" id="liveGid"></div>
+        </div>
+        <p style="font-size:11.5px;color:var(--text-muted)">Ambil dari URL sheet Anda: docs.google.com/spreadsheets/d/<b>SPREADSHEET_ID</b>/edit?gid=<b>GID</b></p>
+        <button class="btn btn-primary btn-sm" id="btnSaveLiveSettings">Simpan &amp; Ambil Data</button>
+      </div>
+
+      <div class="stats-row" id="liveStatsRow"></div>
+
+      <div class="note-box hidden" id="liveErrorBox"></div>
+      <p style="font-size:12px;color:var(--text-muted)" id="liveUpdatedAt"></p>
+
+      <div class="panel">
+        <div class="toolbar">
+          <input type="text" id="liveSearch" placeholder="Cari unit / penyewa / kota...">
+          <select id="liveFilterStatus">
+            <option value="">Semua status</option>
+            <option value="Standby">Standby</option>
+            <option value="Disewa">Disewa / Bekerja</option>
+            <option value="Breakdown">Breakdown</option>
+          </select>
+        </div>
+        <div style="overflow-x:auto">
+          <table>
+            <thead><tr><th>Unit</th><th>Kelas</th><th>Status</th><th>Nama Penyewa</th><th>Kota</th><th>Alamat</th><th>Pekerjaan</th></tr></thead>
+            <tbody id="liveTableBody"></tbody>
+          </table>
+        </div>
+        <div class="empty hidden" id="liveEmpty">Belum ada data. Klik Refresh untuk mengambil data dari Google Sheets.</div>
+      </div>
     </div>
 
     <!-- BLAST -->
@@ -416,7 +462,7 @@ document.querySelectorAll('.nav-btn').forEach(btn=>{
   btn.addEventListener('click', ()=>{
     document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
     btn.classList.add('active');
-    ['kontak','unit','blast'].forEach(t=>{
+    ['kontak','unit','live','blast'].forEach(t=>{
       document.getElementById('tab-'+t).classList.toggle('hidden', t !== btn.dataset.tab);
     });
   });
@@ -672,6 +718,131 @@ document.getElementById('btnConfirmCsvUnit').addEventListener('click', async ()=
   csvUnitModalBg.classList.add('hidden');
   render();
   alert(`Impor selesai: ${added} unit baru, ${updated} unit diperbarui.`);
+});
+
+// ---- Status Live (Google Sheets) ----
+const DEFAULT_SHEET_ID = '1I2ySQuoy0wa41U88ufNSv2a2a29PpcuklKiPIZF6mzY';
+const DEFAULT_GID = '1910648116';
+let liveRows = [];
+
+function getLiveSettings(){
+  const saved = localStorage.getItem('live-sheet-settings');
+  if(saved){ try{ return JSON.parse(saved); }catch(e){} }
+  return {sheetId: DEFAULT_SHEET_ID, gid: DEFAULT_GID};
+}
+function saveLiveSettings(s){ localStorage.setItem('live-sheet-settings', JSON.stringify(s)); }
+
+document.getElementById('btnLiveSettings').addEventListener('click', ()=>{
+  const s = getLiveSettings();
+  document.getElementById('liveSheetId').value = s.sheetId;
+  document.getElementById('liveGid').value = s.gid;
+  document.getElementById('liveSettingsPanel').classList.toggle('hidden');
+});
+document.getElementById('btnSaveLiveSettings').addEventListener('click', ()=>{
+  const sheetId = document.getElementById('liveSheetId').value.trim();
+  const gid = document.getElementById('liveGid').value.trim();
+  if(!sheetId){ alert('Spreadsheet ID wajib diisi.'); return; }
+  saveLiveSettings({sheetId, gid});
+  document.getElementById('liveSettingsPanel').classList.add('hidden');
+  fetchLiveData();
+});
+
+function guessLiveColumn(headers, words){
+  return headers.find(h => words.some(w => h.toLowerCase().includes(w))) || '';
+}
+
+async function fetchLiveData(){
+  const box = document.getElementById('liveErrorBox');
+  box.classList.add('hidden');
+  const s = getLiveSettings();
+  const url = `https://docs.google.com/spreadsheets/d/${s.sheetId}/gviz/tq?tqx=out:csv${s.gid ? '&gid='+s.gid : ''}&_=${Date.now()}`;
+  document.getElementById('btnLiveRefresh').textContent = '↻ Memuat...';
+  try{
+    const res = await fetch(url);
+    const text = await res.text();
+    if(!res.ok || text.trim().toLowerCase().startsWith('<!doctype') || text.includes('accounts.google.com')){
+      throw new Error('AKSES_DITOLAK');
+    }
+    const parsed = Papa.parse(text, {header:true, skipEmptyLines:true});
+    const headers = parsed.meta.fields || [];
+    const map = {
+      unitCode: guessLiveColumn(headers, ['unit code','kode unit']),
+      kelas: guessLiveColumn(headers, ['class','kelas']),
+      statusRaw: guessLiveColumn(headers, ['status alat','jenis sewa','status']),
+      penyewa: guessLiveColumn(headers, ['nama penyewa','penyewa']),
+      alamat: guessLiveColumn(headers, ['alamat']),
+      kota: guessLiveColumn(headers, ['kota']),
+      pekerjaan: guessLiveColumn(headers, ['jenis pekerjaan','pekerjaan']),
+    };
+    liveRows = parsed.data.map(row=>{
+      const statusRaw = (map.statusRaw ? row[map.statusRaw] : '') || '';
+      const s = statusRaw.toUpperCase();
+      let status = 'Disewa';
+      if(s.includes('BREAKDOWN')) status = 'Breakdown';
+      else if(s.includes('STANDBY')) status = 'Standby';
+      return{
+        unitCode: map.unitCode ? row[map.unitCode] : '',
+        kelas: map.kelas ? row[map.kelas] : '',
+        status,
+        penyewa: map.penyewa ? row[map.penyewa] : '',
+        alamat: map.alamat ? row[map.alamat] : '',
+        kota: map.kota ? row[map.kota] : '',
+        pekerjaan: map.pekerjaan ? row[map.pekerjaan] : '',
+      };
+    }).filter(r=>r.unitCode);
+    document.getElementById('liveUpdatedAt').textContent = 'Terakhir diperbarui: ' + new Date().toLocaleString('id-ID');
+    renderLiveTable();
+  }catch(e){
+    box.classList.remove('hidden');
+    box.innerHTML = `<b>Gagal mengambil data.</b> Kemungkinan sheet belum di-set "Anyone with the link" di menu Share Google Sheets, atau Spreadsheet ID/GID salah. Data terakhir yang berhasil diambil (jika ada) tetap ditampilkan di bawah.`;
+  }
+  document.getElementById('btnLiveRefresh').textContent = '↻ Refresh';
+}
+
+function renderLiveStats(){
+  const total = liveRows.length;
+  const standby = liveRows.filter(r=>r.status==='Standby').length;
+  const disewa = liveRows.filter(r=>r.status==='Disewa').length;
+  const breakdown = liveRows.filter(r=>r.status==='Breakdown').length;
+  document.getElementById('liveStatsRow').innerHTML = `
+    <div class="stat-card s-grey"><div class="stat-num">${total}</div><div class="stat-label">Total Termonitor</div></div>
+    <div class="stat-card s-green"><div class="stat-num">${standby}</div><div class="stat-label">Standby / Ready</div></div>
+    <div class="stat-card"><div class="stat-num">${disewa}</div><div class="stat-label">Disewa / Bekerja</div></div>
+    <div class="stat-card s-orange"><div class="stat-num">${breakdown}</div><div class="stat-label">Breakdown</div></div>
+  `;
+}
+
+function renderLiveTable(){
+  renderLiveStats();
+  const search = document.getElementById('liveSearch').value.toLowerCase();
+  const filterStatus = document.getElementById('liveFilterStatus').value;
+  const list = liveRows.filter(r=>{
+    const matchSearch = !search || (r.unitCode+r.penyewa+r.kota).toLowerCase().includes(search);
+    const matchStatus = !filterStatus || r.status === filterStatus;
+    return matchSearch && matchStatus;
+  });
+  document.getElementById('liveEmpty').classList.toggle('hidden', liveRows.length !== 0);
+  const badgeClass = {Standby:'badge-tersedia', Disewa:'badge-disewa', Breakdown:'badge-maintenance'};
+  document.getElementById('liveTableBody').innerHTML = list.map(r=>`
+    <tr>
+      <td><b>${escHtml(r.unitCode)}</b></td>
+      <td>${escHtml(r.kelas||'-')}</td>
+      <td><span class="badge ${badgeClass[r.status]}">${r.status}</span></td>
+      <td>${escHtml(r.penyewa||'-')}</td>
+      <td>${escHtml(r.kota||'-')}</td>
+      <td>${escHtml(r.alamat||'-')}</td>
+      <td>${escHtml(r.pekerjaan||'-')}</td>
+    </tr>
+  `).join('');
+}
+document.getElementById('btnLiveRefresh').addEventListener('click', fetchLiveData);
+document.getElementById('liveSearch').addEventListener('input', renderLiveTable);
+document.getElementById('liveFilterStatus').addEventListener('change', renderLiveTable);
+
+// Auto-fetch once when the Status Live tab is first opened
+let liveFetchedOnce = false;
+document.querySelector('[data-tab="live"]').addEventListener('click', ()=>{
+  if(!liveFetchedOnce){ liveFetchedOnce = true; fetchLiveData(); }
 });
 
 // ---- Blast ----
