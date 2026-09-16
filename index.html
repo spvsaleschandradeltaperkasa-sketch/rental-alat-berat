@@ -140,6 +140,7 @@
         <div><h1>Kontak</h1><p>Database klien &amp; kontraktor</p></div>
         <div class="btn-row">
           <button class="btn" id="btnImport">Impor Excel/CSV</button>
+          <button class="btn btn-danger" id="btnDeleteAllContacts">Hapus Semua</button>
           <button class="btn btn-primary" id="btnAddContact">+ Tambah Kontak</button>
         </div>
       </div>
@@ -167,6 +168,7 @@
         <div><h1>Unit Alat Berat</h1><p>Status ketersediaan armada</p></div>
         <div class="btn-row">
           <button class="btn" id="btnImportUnit">Impor Excel/CSV</button>
+          <button class="btn btn-danger" id="btnDeleteAllUnits">Hapus Semua</button>
           <button class="btn btn-primary" id="btnAddUnit">+ Tambah Unit</button>
         </div>
       </div>
@@ -520,6 +522,16 @@ window.deleteContact = async function(id){
 };
 document.getElementById('searchContact').addEventListener('input', renderContacts);
 document.getElementById('filterKategori').addEventListener('change', renderContacts);
+document.getElementById('btnDeleteAllContacts').addEventListener('click', async ()=>{
+  if(contacts.length===0){ alert('Belum ada kontak untuk dihapus.'); return; }
+  const ok1 = confirm(`Yakin mau hapus SEMUA ${contacts.length} kontak? Tindakan ini tidak bisa dibatalkan.`);
+  if(!ok1) return;
+  const ok2 = confirm('Konfirmasi sekali lagi: benar-benar hapus semua kontak?');
+  if(!ok2) return;
+  contacts = [];
+  await saveContacts();
+  render();
+});
 
 // ---- Unit modal ----
 const unitModalBg = document.getElementById('unitModalBg');
@@ -569,6 +581,16 @@ window.deleteUnit = async function(id){
   render();
 };
 document.getElementById('filterStatus').addEventListener('change', renderUnits);
+document.getElementById('btnDeleteAllUnits').addEventListener('click', async ()=>{
+  if(units.length===0){ alert('Belum ada unit untuk dihapus.'); return; }
+  const ok1 = confirm(`Yakin mau hapus SEMUA ${units.length} unit? Tindakan ini tidak bisa dibatalkan.`);
+  if(!ok1) return;
+  const ok2 = confirm('Konfirmasi sekali lagi: benar-benar hapus semua unit?');
+  if(!ok2) return;
+  units = [];
+  await saveUnits();
+  render();
+});
 
 // ---- CSV Import ----
 const csvModalBg = document.getElementById('csvModalBg');
